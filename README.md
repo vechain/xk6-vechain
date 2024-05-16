@@ -1,7 +1,7 @@
 To install build the k6 binary:
 
 ```bash
-CGO_ENABLED=1 xk6 build --with github.com/darrenvechain/xk6-vechain=.```
+CGO_ENABLED=1 xk6 build --with github.com/darrenvechain/xk6-vechain=.
 ```
 
 To run the tests:
