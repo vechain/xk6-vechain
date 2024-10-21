@@ -97,7 +97,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 
 	chainTag := thor.Client.ChainTag()
 
-	managers := make(map[int]*txmanager.PKManager)
+	managers := make([]*txmanager.PKManager, opts.Accounts)
 	for i := 0; i < opts.Accounts; i++ {
 		key := wa.Child(uint32(i)).MustGetPrivateKey()
 		manager := txmanager.FromPK(key, thor)

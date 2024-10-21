@@ -1,12 +1,15 @@
 package xk6_vechain
 
 import (
-	"github.com/darrenvechain/thor-go-sdk/client"
+	"errors"
+	"math/big"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/darrenvechain/thor-go-sdk/builtins"
 	"github.com/darrenvechain/thor-go-sdk/crypto/hdwallet"
+	"github.com/darrenvechain/thor-go-sdk/crypto/transaction"
 	"github.com/darrenvechain/thor-go-sdk/thorgo"
 	"github.com/darrenvechain/thor-go-sdk/txmanager"
 	"github.com/darrenvechain/xk6-vechain/toolchain"
@@ -23,12 +26,19 @@ type Client struct {
 	metrics  vechainMetrics
 	opts     *options
 	accounts int
-	managers map[int]*txmanager.PKManager
+	managers []*txmanager.PKManager
+}
+
+func (c *Client) Accounts() []string {
+	addresses := make([]string, 0)
+	for _, i := range c.managers {
+		addresses = append(addresses, i.Address().String())
+	}
+	return addresses
 }
 
 func (c *Client) DeployToolchain(amount int) ([]string, error) {
-	managers := c.managerList()
-	contracts, err := toolchain.Deploy(c.thor, managers, amount)
+	contracts, err := toolchain.Deploy(c.thor, c.managers, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -40,22 +50,81 @@ func (c *Client) DeployToolchain(amount int) ([]string, error) {
 }
 
 func (c *Client) NewToolchainTransaction(address string) (string, error) {
-	managers := c.managerList()
 	addr := common.HexToAddress(address)
-	return toolchain.NewTransaction(c.thor, managers, addr)
+	return toolchain.NewTransaction(c.thor, c.managers, addr)
 }
 
-// WaitForTx
-func (c *Client) WaitForTx(txID string) (*client.TransactionReceipt, error) {
-	return c.thor.Transaction(common.HexToHash(txID)).Wait()
-}
-
-func (c *Client) managerList() []*txmanager.PKManager {
-	managers := make([]*txmanager.PKManager, 0)
-	for _, i := range c.managers {
-		managers = append(managers, i)
+// Fund sends VET and VTHO to the accounts after the index, funded by the accounts before the index.
+// The amount is the amount of VET & VTHO to send, represented as hex.
+// Example: thor solo only funds the first 10 accounts [0-9], so specify 10 as the start index.
+func (c *Client) Fund(start int, amount string) error {
+	if start > len(c.managers) {
+		return errors.New("start index is greater than the number of accounts")
 	}
-	return managers
+
+	// funder index -> clauses to send
+	clauses := make(map[int][]*transaction.Clause)
+	vtho := builtins.VTHO.Load(c.thor)
+
+	for i := start; i < len(c.managers); i++ {
+		fundee := c.managers[i].Address()
+		funderIndex := i % start
+
+		value := new(big.Int)
+		value.SetString(amount, 16)
+
+		vetClause := transaction.NewClause(&fundee).WithValue(value)
+		vthoClause, err := vtho.AsClause("transfer", fundee, value)
+		if err != nil {
+			return err
+		}
+
+		funderClauses := clauses[funderIndex]
+		if funderClauses == nil {
+			funderClauses = make([]*transaction.Clause, 0)
+		}
+
+		clauses[funderIndex] = append(funderClauses, vetClause, vthoClause)
+	}
+
+	var (
+		wg        sync.WaitGroup
+		clauseErr error
+	)
+
+	for i, clauses := range clauses {
+		wg.Add(1)
+		manager := c.managers[i]
+		go func(i *txmanager.PKManager, clauses []*transaction.Clause) {
+			defer wg.Done()
+			for i := 0; i < len(clauses); i += 100 {
+				end := i + 100
+				if end > len(clauses) {
+					end = len(clauses)
+				}
+
+				tx, err := c.thor.Transactor(clauses[i:end], manager.Address()).Send(manager)
+				if err != nil {
+					clauseErr = err
+					return
+				}
+
+				_, err = tx.Wait()
+				if err != nil {
+					clauseErr = err
+					return
+				}
+			}
+		}(manager, clauses)
+	}
+
+	wg.Wait()
+
+	if clauseErr != nil {
+		return clauseErr
+	}
+
+	return nil
 }
 
 var blocks sync.Map

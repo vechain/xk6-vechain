@@ -22,12 +22,15 @@ var ABI string
 //go:embed Toolchain.bin
 var Bytecode string
 
+var (
+	toolchainABI, abiErr = abi.JSON(strings.NewReader(ABI))
+)
+
 func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address common.Address) (string, error) {
 	manager := random.Element(managers)
 
-	toolchainABI, err := abi.JSON(strings.NewReader(ABI))
-	if err != nil {
-		return "", err
+	if abiErr != nil {
+		return "", abiErr
 	}
 	contract := thor.Account(address).Contract(&toolchainABI)
 
@@ -65,10 +68,8 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 
 func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*accounts.Contract, error) {
 	contracts := make([]*accounts.Contract, 0, amount)
-
-	toolchainABI, err := abi.JSON(strings.NewReader(ABI))
-	if err != nil {
-		return nil, err
+	if abiErr != nil {
+		return nil, abiErr
 	}
 	deployer := thor.Deployer(common.Hex2Bytes(Bytecode), &toolchainABI)
 
