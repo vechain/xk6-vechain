@@ -1,23 +1,30 @@
 import vechain from "k6/x/vechain";
 import http from "k6/http";
 import {check} from "k6";
+import {sleep} from "k6";
 
 export const options = {
     scenarios: {
-        constant_arrival_rate: {
-            executor: "constant-arrival-rate",
-            // How long the test lasts
-            duration: "120s",
-            // 50 transactions per block
-            rate: 50,
-            // 10 seconds -> 1 block
-            timeUnit: "1s",
+        contacts: {
+            executor: 'ramping-arrival-rate',
+            // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
+            startRate: 10,
+            // Set the time unit to 10 seconds (ie. 1 block)
+            timeUnit: '10s',
+            // Pre-allocate necessary VUs.
             preAllocatedVUs: 100,
             maxVUs: 100,
+            stages: [
+                { target: 25, duration: '30s' },
+                { target: 35, duration: '30s' },
+                { target: 60, duration: '1m' },
+                { target: 60, duration: '30s' },
+                { target: 10, duration: '30s' },
+            ],
         },
     },
     tags: {
-        name: "vechain-toolchain",
+        test_name: "vechain-toolchain",
         test_run_id: new Date().toISOString(),
     }
 };
@@ -42,6 +49,8 @@ export default function (setup) {
     check(res, {
         "is status 200": (r) => r.status === 200,
     });
+
+    sleep(5);
 }
 
 export function setup() {
