@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/darrenvechain/thor-go-sdk/crypto/hdwallet"
-	"github.com/darrenvechain/thor-go-sdk/thorgo"
-	"github.com/darrenvechain/thor-go-sdk/txmanager"
+	"github.com/darrenvechain/thorgo"
+	"github.com/darrenvechain/thorgo/crypto/hdwallet"
+	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/accounts"
 	"github.com/grafana/sobek"
 	"go.k6.io/k6/js/common"

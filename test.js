@@ -7,15 +7,19 @@ export const options = {
         constant_arrival_rate: {
             executor: "constant-arrival-rate",
             // How long the test lasts
-            duration: "1m",
-            // 60 transactions per block
-            rate: 60,
+            duration: "120s",
+            // 50 transactions per block
+            rate: 50,
             // 10 seconds -> 1 block
-            timeUnit: "10s",
-            preAllocatedVUs: 10,
-            maxVUs: 10,
+            timeUnit: "1s",
+            preAllocatedVUs: 100,
+            maxVUs: 100,
         },
     },
+    tags: {
+        name: "vechain-toolchain",
+        test_run_id: new Date().toISOString(),
+    }
 };
 
 const url = "http://localhost:8669";
@@ -24,7 +28,7 @@ const thor = vechain.Client({
     url: url,
     mnemonic:
         "denial kitchen pet squirrel other broom bar gas better priority spoil cross",
-    accounts: 100,
+    accounts: 1000,
 });
 
 export default function (setup) {

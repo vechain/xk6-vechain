@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/darrenvechain/thor-go-sdk/crypto/transaction"
-	"github.com/darrenvechain/thor-go-sdk/thorgo"
-	"github.com/darrenvechain/thor-go-sdk/thorgo/accounts"
-	"github.com/darrenvechain/thor-go-sdk/txmanager"
+	"github.com/darrenvechain/thorgo"
+	"github.com/darrenvechain/thorgo/accounts"
+	"github.com/darrenvechain/thorgo/crypto/tx"
+	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/random"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,7 +35,7 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 	contract := thor.Account(address).Contract(&toolchainABI)
 
 	clauseAmount := 40
-	clauses := make([]*transaction.Clause, clauseAmount)
+	clauses := make([]*tx.Clause, clauseAmount)
 	for i := 0; i < clauseAmount; i++ {
 		a := random.Uint8()
 		b := [32]byte(random.Bytes(32))
@@ -47,18 +47,18 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	tx, err := thor.Transactor(clauses, manager.Address()).Build()
+	transaction, err := thor.Transactor(clauses).Build(manager.Address())
 	if err != nil {
 		return "", err
 	}
 
-	signature, err := manager.SignTransaction(tx)
+	signature, err := manager.SignTransaction(transaction)
 	if err != nil {
 		return "", err
 	}
-	tx = tx.WithSignature(signature)
+	transaction = transaction.WithSignature(signature)
 
-	encoded, err := tx.Encoded()
+	encoded, err := transaction.Encoded()
 	if err != nil {
 		return "", err
 	}

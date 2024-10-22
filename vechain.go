@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/darrenvechain/thor-go-sdk/builtins"
-	"github.com/darrenvechain/thor-go-sdk/crypto/hdwallet"
-	"github.com/darrenvechain/thor-go-sdk/crypto/transaction"
-	"github.com/darrenvechain/thor-go-sdk/thorgo"
-	"github.com/darrenvechain/thor-go-sdk/txmanager"
+	"github.com/darrenvechain/thorgo"
+	"github.com/darrenvechain/thorgo/builtins"
+	"github.com/darrenvechain/thorgo/crypto/hdwallet"
+	"github.com/darrenvechain/thorgo/crypto/tx"
+	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/toolchain"
 	"github.com/ethereum/go-ethereum/common"
 	"go.k6.io/k6/js/modules"
@@ -63,7 +63,7 @@ func (c *Client) Fund(start int, amount string) error {
 	}
 
 	// funder index -> clauses to send
-	clauses := make(map[int][]*transaction.Clause)
+	clauses := make(map[int][]*tx.Clause)
 	vtho := builtins.VTHO.Load(c.thor)
 
 	for i := start; i < len(c.managers); i++ {
@@ -73,7 +73,7 @@ func (c *Client) Fund(start int, amount string) error {
 		value := new(big.Int)
 		value.SetString(amount, 16)
 
-		vetClause := transaction.NewClause(&fundee).WithValue(value)
+		vetClause := tx.NewClause(&fundee).WithValue(value)
 		vthoClause, err := vtho.AsClause("transfer", fundee, value)
 		if err != nil {
 			return err
@@ -81,7 +81,7 @@ func (c *Client) Fund(start int, amount string) error {
 
 		funderClauses := clauses[funderIndex]
 		if funderClauses == nil {
-			funderClauses = make([]*transaction.Clause, 0)
+			funderClauses = make([]*tx.Clause, 0)
 		}
 
 		clauses[funderIndex] = append(funderClauses, vetClause, vthoClause)
@@ -95,7 +95,7 @@ func (c *Client) Fund(start int, amount string) error {
 	for i, clauses := range clauses {
 		wg.Add(1)
 		manager := c.managers[i]
-		go func(i *txmanager.PKManager, clauses []*transaction.Clause) {
+		go func(i *txmanager.PKManager, clauses []*tx.Clause) {
 			defer wg.Done()
 			for i := 0; i < len(clauses); i += 100 {
 				end := i + 100
@@ -103,7 +103,7 @@ func (c *Client) Fund(start int, amount string) error {
 					end = len(clauses)
 				}
 
-				tx, err := c.thor.Transactor(clauses[i:end], manager.Address()).Send(manager)
+				tx, err := c.thor.Transactor(clauses[i:end]).Send(manager)
 				if err != nil {
 					clauseErr = err
 					return
@@ -142,14 +142,14 @@ func (c *Client) pollForBlocks() {
 		}
 
 		if block.Number > prev.Number {
-			blockTimestampDiff := time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prev.Timestamp), 0))
+			blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
 			tps := float64(len(block.Transactions)) / float64(blockTimestampDiff.Seconds())
 
 			prev = block
 
 			rootTS := metrics.NewRegistry().RootTagSet()
 			if c.vu != nil && c.vu.State() != nil && rootTS != nil {
-				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatUint(block.Number, 10), true); loaded {
+				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatInt(block.Number, 10), true); loaded {
 					// We already have a block number for this client, so we can skip this
 					continue
 				}
