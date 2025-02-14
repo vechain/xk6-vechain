@@ -15,8 +15,11 @@ export const options = {
             maxVUs: 100,
             stages: [
                 { target: 22, duration: '1m' }, //~50% utilization for 1 minute
-                { target: 33, duration: '1m' }, //~75% utilization for 1 minute
+                { target: 33, duration: '1m' }, // ramp up to 75% utilization for 1 minute
+                { target: 33, duration: '1m' }, // stay at 75% utilization for 1 minute
+                { target: 44, duration: '1m' }, // ramp up to 100% utilization for 1 minute
                 { target: 44, duration: '1m' }, //~100% utilization for 1 minute
+                { target: 33, duration: '1m' }, // ramp down to 75% utilization for 1 minute
                 { target: 33, duration: '1m' }, //~75% utilization for 1 minute
             ],
         },
