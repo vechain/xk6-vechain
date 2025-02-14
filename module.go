@@ -2,6 +2,7 @@ package xk6_vechain
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -90,21 +91,20 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 		common.Throw(rt, fmt.Errorf("invalid options; reason: %w", err))
 	}
 
-	thor, err := thorgo.FromURL(opts.URL)
-	if err != nil {
-		common.Throw(rt, fmt.Errorf("invalid options; reason: %w", err))
-	}
+	thor := thorgo.New(context.Background(), opts.URL)
 
-	chainTag := thor.Client.ChainTag()
+	chainTag, err := thor.Client.ChainTag()
+	if err != nil {
+		common.Throw(rt, fmt.Errorf("failed to get chain tag: %w", err))
+	}
 
 	managers := make([]*txmanager.PKManager, opts.Accounts)
 	for i := 0; i < opts.Accounts; i++ {
-		key := wa.Child(uint32(i)).MustGetPrivateKey()
-		manager := txmanager.FromPK(key, thor)
+		key, err := wa.Child(uint32(i))
 		if err != nil {
-			common.Throw(rt, fmt.Errorf("failed to create tx manager: %w", err))
+			panic(err)
 		}
-
+		manager := txmanager.FromPK(key.MustGetPrivateKey(), thor.Client)
 		managers[i] = manager
 	}
 

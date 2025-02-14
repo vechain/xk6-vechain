@@ -19,7 +19,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "links": [],
-  "liveNow": true,
+  "liveNow": false,
   "panels": [
     {
       "datasource": {
@@ -47,11 +47,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 0
       },
-      "id": 4,
+      "id": 6,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -66,7 +66,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "name",
         "wideLayout": true
       },
       "pluginVersion": "11.2.0",
@@ -76,11 +76,11 @@
             "type": "influxdb",
             "uid": "P951FEA4DE68E13C5"
           },
-          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> quantile(q: 0.95, method: \"exact_mean\")",
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"http_reqs\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 1y, fn: sum, createEmpty: false)\n  |> yield(name: \"sum\")",
           "refId": "A"
         }
       ],
-      "title": "$http_metric P95",
+      "title": "Test Colours",
       "type": "stat"
     },
     {
@@ -109,9 +109,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
+        "w": 8,
+        "x": 8,
+        "y": 0
       },
       "id": 1,
       "options": {
@@ -128,7 +128,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.2.0",
@@ -147,10 +147,11 @@
     },
     {
       "datasource": {
-        "default": true,
+        "default": false,
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -160,12 +161,12 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "RPS",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "barWidthFactor": 0.6,
+            "barWidthFactor": 0.5,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 13,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -196,10 +197,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -208,20 +205,256 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 16
+        "w": 8,
+        "x": 16,
+        "y": 0
       },
       "id": 3,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"http_reqs\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() // Get the first entry per test_run_id\n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\ncurrentTime = now()\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"http_reqs\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 1s, fn: sum, createEmpty: false)\n\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Requests",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "id": 7,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> quantile(q: 0.90, method: \"exact_mean\")",
+          "refId": "A"
+        }
+      ],
+      "title": "P(90)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "id": 9,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> quantile(q: 0.99, method: \"exact_mean\")",
+          "refId": "A"
+        }
+      ],
+      "title": "P(99)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisGridShow": true,
+            "axisLabel": "VUs per second",
+            "axisPlacement": "left",
+            "barAlignment": -1,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 11,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "id": 5,
+      "interval": "5s",
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "hoverProximity": 2,
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -231,16 +464,82 @@
             "type": "influxdb",
             "uid": "P951FEA4DE68E13C5"
           },
-          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ntest_run_ids = schema.tagValues(bucket: \"vechain\", tag: \"test_run_id\")\n    |> filter(fn: (r) => contains(value: r._value, set: ${test_run_id:json}))\n    |> tableFind(fn: (key) => true)\n    |> getColumn(column: \"_value\")\n\ncurrentTime = now()\n\ntest_map = array.map(arr: test_run_ids, fn: (x) => ({\n    test_run_id: x,\n    shift: uint(v: currentTime) - uint(v: time(v: x))\n}))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json})) \n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 1s, fn: sum, createEmpty: false)\n\n\njoined = join(tables: {data: data, shifts: array.from(rows: test_map)}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")",
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ncurrentTime = now()\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() // Get the first entry per test_run_id\n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"vus\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 1s, fn: mean, createEmpty: false)\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
           "refId": "A"
         }
       ],
-      "title": "$http_metric RPS",
+      "title": "Virtual Users",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "default": true,
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 3,
+        "y": 16
+      },
+      "id": 8,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> mean()",
+          "refId": "A"
+        }
+      ],
+      "title": "Mean",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
         "type": "influxdb",
         "uid": "P951FEA4DE68E13C5"
       },
@@ -258,7 +557,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -272,7 +571,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -302,8 +601,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 24
+        "x": 9,
+        "y": 16
       },
       "id": 2,
       "options": {
@@ -318,17 +617,504 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "P951FEA4DE68E13C5"
           },
-          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ntest_run_ids = schema.tagValues(bucket: \"vechain\", tag: \"test_run_id\")\n    |> filter(fn: (r) => contains(value: r._value, set: ${test_run_id:json}))\n    |> tableFind(fn: (key) => true)\n    |> getColumn(column: \"_value\")\n\ncurrentTime = now()\n\ntest_map = array.map(arr: test_run_ids, fn: (x) => ({\n    test_run_id: x,\n    shift: uint(v: currentTime) - uint(v: time(v: x))\n}))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json})) \n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 10s, fn: mean, createEmpty: false)\n\n\njoined = join(tables: {data: data, shifts: array.from(rows: test_map)}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"mean\")",
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ncurrentTime = now()\n\nhttp_metric=\"http_req_duration\"\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() \n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 10s, fn: mean, createEmpty: false)\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
           "refId": "A"
         }
       ],
-      "title": "$http_metric mean",
+      "title": "Mean over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 3,
+        "y": 24
+      },
+      "id": 11,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> quantile(q: 0.50, method: \"exact_mean\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Median",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 9,
+        "y": 24
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ncurrentTime = now()\n\nhttp_metric=\"http_req_duration\"\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() \n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 10s, fn: median, createEmpty: false)\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Median over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 3,
+        "y": 32
+      },
+      "id": 12,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {
+          "titleSize": 0
+        },
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> max()",
+          "refId": "A"
+        }
+      ],
+      "title": "Max",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 9,
+        "y": 32
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ncurrentTime = now()\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() \n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 10s, fn: max, createEmpty: false)\n\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Max Values over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 3,
+        "y": 40
+      },
+      "id": 13,
+      "options": {
+        "displayMode": "basic",
+        "maxVizHeight": 300,
+        "minVizHeight": 0,
+        "minVizWidth": 89,
+        "namePlacement": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "text": {},
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r._measurement == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r._field == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> min()",
+          "refId": "A"
+        }
+      ],
+      "title": "Min",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "default": false,
+        "type": "influxdb",
+        "uid": "P951FEA4DE68E13C5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 9,
+        "y": 40
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "P951FEA4DE68E13C5"
+          },
+          "query": "import \"array\"\nimport \"strings\"\nimport \"influxdata/influxdb/schema\"\n\ncurrentTime = now()\n\ntest_run_first_entries = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> first() \n  |> keep(columns: [\"_time\", \"test_run_id\"])\n\n\ntest_map = test_run_first_entries\n  |> reduce(\n    fn: (r, accumulator) => ({\n        test_run_id: r[\"test_run_id\"],\n        first_time: if accumulator.first_time == time(v: 0) then r._time else accumulator.first_time\n    }),\n    identity: {test_run_id: \"\", first_time: time(v: 0)}\n  )\n  |> map(fn: (r) => ({\n      test_run_id: r.test_run_id,\n      shift: uint(v: currentTime) - uint(v: r.first_time) // Convert _time to uint here\n  }))\n\ndata = from(bucket: \"vechain\")\n  |> range(start: -1y)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"${http_metric}\")\n  |> filter(fn: (r) => contains(value: r[\"test_run_id\"], set: ${test_run_id:json}))\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"test_run_id\", \"_measurement\"])\n  |> aggregateWindow(every: 10s, fn: min, createEmpty: false)\n\n\njoined = join(tables: {data: data, shifts: test_map}, on: [\"test_run_id\"])\n\nresult = joined\n  |> map(fn: (r) => ({\n      _time: r._time,\n      _value: r._value,\n      test_run_id: r.test_run_id,\n      shift: r.shift\n    }))\n  |> map(fn: (r) => ({\n      _time: time(v: uint(v: r._time) + r.shift),\n      _value: r._value,\n      test_run_id: r.test_run_id\n    }))\n\nresult |> yield(name: \"_value\")\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Min Values over Time",
       "type": "timeseries"
     }
   ],
@@ -339,7 +1125,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "http_req_duration",
           "value": "http_req_duration"
         },
@@ -425,12 +1211,12 @@
         "current": {
           "selected": true,
           "text": [
-            "2024-10-22T16:54:15.994Z",
-            "2024-10-22T16:57:59.188Z"
+            "2024-10-22T17:04:34.659Z",
+            "2024-10-22T17:22:21.760Z"
           ],
           "value": [
-            "2024-10-22T16:54:15.994Z",
-            "2024-10-22T16:57:59.188Z"
+            "2024-10-22T17:04:34.659Z",
+            "2024-10-22T17:22:21.760Z"
           ]
         },
         "datasource": {
@@ -456,11 +1242,11 @@
     ]
   },
   "time": {
-    "from": "now",
-    "to": "now+3m"
+    "from": "now-1m",
+    "to": "now+4m"
   },
   "timepicker": {
-    "hidden": true,
+    "hidden": false,
     "refresh_intervals": [
       "5s",
       "10s",
@@ -477,6 +1263,6 @@
   "timezone": "browser",
   "title": "Influx DB v2 Stats",
   "uid": "fe1jia657yyv4d",
-  "version": 1,
+  "version": 21,
   "weekStart": ""
 }

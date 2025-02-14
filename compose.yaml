@@ -22,7 +22,6 @@ services:
     volumes:
       - ${PWD}/volumes/influxdb2:/var/lib/influxdb2
 
-
   grafana:
     user: "0"
     image: grafana/grafana:latest

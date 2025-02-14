@@ -1,6 +1,7 @@
 package xk6_vechain
 
 import (
+	"context"
 	"errors"
 	"math/big"
 	"strconv"
@@ -44,7 +45,7 @@ func (c *Client) DeployToolchain(amount int) ([]string, error) {
 	}
 	addresses := make([]string, 0)
 	for _, contract := range contracts {
-		addresses = append(addresses, contract.Address.String())
+		addresses = append(addresses, contract.Address().String())
 	}
 	return addresses, nil
 }
@@ -64,7 +65,10 @@ func (c *Client) Fund(start int, amount string) error {
 
 	// funder index -> clauses to send
 	clauses := make(map[int][]*tx.Clause)
-	vtho := builtins.VTHO.Load(c.thor)
+	vtho, err := builtins.NewVTHO(c.thor.Client)
+	if err != nil {
+		return err
+	}
 
 	for i := start; i < len(c.managers); i++ {
 		fundee := c.managers[i].Address()
@@ -74,7 +78,7 @@ func (c *Client) Fund(start int, amount string) error {
 		value.SetString(amount, 16)
 
 		vetClause := tx.NewClause(&fundee).WithValue(value)
-		vthoClause, err := vtho.AsClause("transfer", fundee, value)
+		vthoClause, err := vtho.TransferAsClause(fundee, value)
 		if err != nil {
 			return err
 		}
@@ -103,13 +107,10 @@ func (c *Client) Fund(start int, amount string) error {
 					end = len(clauses)
 				}
 
-				tx, err := c.thor.Transactor(clauses[i:end]).Send(manager)
-				if err != nil {
-					clauseErr = err
-					return
-				}
-
-				_, err = tx.Wait()
+				txID, err := manager.SendClauses(clauses[i:end], nil)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+				_, err = c.thor.Transaction(txID).Wait(ctx)
+				cancel()
 				if err != nil {
 					clauseErr = err
 					return

@@ -1,31 +1,29 @@
 import vechain from "k6/x/vechain";
 import http from "k6/http";
-import {check} from "k6";
-import {sleep} from "k6";
+import {sleep, check} from "k6";
 
 export const options = {
     scenarios: {
         contacts: {
             executor: 'ramping-arrival-rate',
             // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
-            startRate: 10,
+            startRate: 22,
             // Set the time unit to 10 seconds (ie. 1 block)
             timeUnit: '10s',
             // Pre-allocate necessary VUs.
             preAllocatedVUs: 100,
             maxVUs: 100,
             stages: [
-                { target: 25, duration: '30s' },
-                { target: 35, duration: '30s' },
-                { target: 60, duration: '1m' },
-                { target: 60, duration: '30s' },
-                { target: 10, duration: '30s' },
+                { target: 22, duration: '1m' }, //~50% utilization for 1 minute
+                { target: 33, duration: '1m' }, //~75% utilization for 1 minute
+                { target: 44, duration: '1m' }, //~100% utilization for 1 minute
+                { target: 33, duration: '1m' }, //~75% utilization for 1 minute
             ],
         },
     },
     tags: {
         test_name: "vechain-toolchain",
-        test_run_id: new Date().toISOString(),
+        test_run_id: 'v2.6.0'
     }
 };
 
@@ -35,7 +33,7 @@ const thor = vechain.Client({
     url: url,
     mnemonic:
         "denial kitchen pet squirrel other broom bar gas better priority spoil cross",
-    accounts: 1000,
+    accounts: 100,
 });
 
 export default function (setup) {

@@ -1,38 +1,28 @@
 package toolchain
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"log/slog"
-	"strings"
 	"sync"
+	"time"
 
 	"github.com/darrenvechain/thorgo"
-	"github.com/darrenvechain/thorgo/accounts"
 	"github.com/darrenvechain/thorgo/crypto/tx"
+	"github.com/darrenvechain/thorgo/transactions"
 	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/random"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-)
-
-//go:embed Toolchain.abi
-var ABI string
-
-//go:embed Toolchain.bin
-var Bytecode string
-
-var (
-	toolchainABI, abiErr = abi.JSON(strings.NewReader(ABI))
 )
 
 func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address common.Address) (string, error) {
 	manager := random.Element(managers)
 
-	if abiErr != nil {
-		return "", abiErr
+	contract, err := NewToolchainTransactor(address, thor.Client, manager)
+	if err != nil {
+		return "", err
 	}
-	contract := thor.Account(address).Contract(&toolchainABI)
 
 	clauseAmount := 40
 	clauses := make([]*tx.Clause, clauseAmount)
@@ -40,14 +30,14 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		a := random.Uint8()
 		b := [32]byte(random.Bytes(32))
 		c := [32]byte(random.Bytes(32))
-		clause, err := contract.AsClause("setBytes32", a, b, c)
+		clause, err := contract.SetBytes32AsClause(a, b, c)
 		if err != nil {
 			panic(err)
 		}
 		clauses[i] = clause
 	}
 
-	transaction, err := thor.Transactor(clauses).Build(manager.Address())
+	transaction, err := thor.Transactor(clauses).Build(manager.Address(), &transactions.Options{})
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +47,6 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		return "", err
 	}
 	transaction = transaction.WithSignature(signature)
-
 	encoded, err := transaction.Encoded()
 	if err != nil {
 		return "", err
@@ -66,12 +55,8 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 	return encoded, nil
 }
 
-func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*accounts.Contract, error) {
-	contracts := make([]*accounts.Contract, 0, amount)
-	if abiErr != nil {
-		return nil, abiErr
-	}
-	deployer := thor.Deployer(common.Hex2Bytes(Bytecode), &toolchainABI)
+func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*ToolchainTransactor, error) {
+	contracts := make([]*ToolchainTransactor, 0, amount)
 
 	var (
 		mu sync.Mutex // mutex to protect concurrent writes
@@ -84,7 +69,10 @@ func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*
 		go func(m *txmanager.PKManager) {
 			defer wg.Done()
 
-			contract, txID, err := deployer.Deploy(manager)
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+
+			txID, contract, err := DeployToolchain(ctx, thor.Client, manager, &transactions.Options{})
 			if err != nil {
 				slog.Error("failed to deploy toolchain contract", "error", err, "txID", txID)
 				return
