@@ -30,6 +30,7 @@ type vechainMetrics struct {
 	GasUsed         *metrics.Metric
 	TPS             *metrics.Metric
 	BlockTime       *metrics.Metric
+	BaseFee         *metrics.Metric
 }
 
 func init() {
@@ -133,6 +134,7 @@ func registerMetrics(vu modules.VU) vechainMetrics {
 		GasUsed:         registry.MustNewMetric("vechain_gas_used", metrics.Trend, metrics.Default),
 		TPS:             registry.MustNewMetric("vechain_tps", metrics.Trend, metrics.Default),
 		BlockTime:       registry.MustNewMetric("vechain_block_time", metrics.Trend, metrics.Time),
+		BaseFee:         registry.MustNewMetric("vechain_base_fee", metrics.Trend, metrics.Default),
 	}
 
 	return m

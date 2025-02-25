@@ -14,13 +14,13 @@ export const options = {
             preAllocatedVUs: 100,
             maxVUs: 100,
             stages: [
-                { target: 22, duration: '1m' }, //~50% utilization for 1 minute
-                { target: 33, duration: '1m' }, // ramp up to 75% utilization for 1 minute
-                { target: 33, duration: '1m' }, // stay at 75% utilization for 1 minute
-                { target: 44, duration: '1m' }, // ramp up to 100% utilization for 1 minute
-                { target: 44, duration: '1m' }, //~100% utilization for 1 minute
-                { target: 33, duration: '1m' }, // ramp down to 75% utilization for 1 minute
-                { target: 33, duration: '1m' }, //~75% utilization for 1 minute
+                { target: 22, duration: '1m' },
+                { target: 22, duration: '1m' },
+                { target: 33, duration: '1m' },
+                { target: 33, duration: '1m' },
+                { target: 44, duration: '1m' },
+                { target: 33, duration: '1m' },
+                { target: 33, duration: '1m' },
             ],
         },
     },
@@ -42,7 +42,7 @@ const thor = vechain.Client({
 export default function (setup) {
     const rawTx = thor.newToolchainTransaction(setup.contracts[0]);
     const body = {
-        raw: `0x${rawTx}`,
+        raw: rawTx
     };
 
     const res = http.post(`${url}/transactions`, JSON.stringify(body));

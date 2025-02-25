@@ -64,8 +64,10 @@ github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 h1:zuQyyAK
 github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06/go.mod h1:7nc4anLGjupUW/PeY5qiNYsdNXj7zopG+eqsS7To5IQ=
 github.com/consensys/bavard v0.1.25 h1:5YcSBnp03/HvfpKaIQLr/ecspTp2k8YNR5rQLOWvUyc=
 github.com/consensys/bavard v0.1.25/go.mod h1:k/zVjHHC4B+PQy1Pg7fgvG3ALicQw540Crag8qx+dZs=
+github.com/consensys/bavard v0.1.29/go.mod h1:k/zVjHHC4B+PQy1Pg7fgvG3ALicQw540Crag8qx+dZs=
 github.com/consensys/gnark-crypto v0.14.0 h1:DDBdl4HaBtdQsq/wfMwJvZNE80sHidrK3Nfrefatm0E=
 github.com/consensys/gnark-crypto v0.14.0/go.mod h1:CU4UijNPsHawiVGNxe9co07FkzCeWHHrb1li/n1XoU0=
+github.com/consensys/gnark-crypto v0.16.0/go.mod h1:Ke3j06ndtPTVvo++PhGNgvm+lgpLvzbcE2MqljY7diU=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
 github.com/containerd/log v0.1.0/go.mod h1:VRRf09a7mHDIRezVKTRCrOq78v577GXq3bSa3EhrzVo=
 github.com/containerd/platforms v0.2.1 h1:zvwtM3rz2YHPQsF2CHYM8+KtB5dvhISiXh5ZpSBQv6A=
@@ -80,6 +82,10 @@ github.com/crate-crypto/go-kzg-4844 v1.1.0 h1:EN/u9k2TF6OWSHrCCDBBU6GLNMq88OspHH
 github.com/crate-crypto/go-kzg-4844 v1.1.0/go.mod h1:JolLjpSff1tCCJKaJx4psrlEdlXuJEC996PL3tTAFks=
 github.com/darrenvechain/thorgo v0.0.0-20250207092920-0986ae74e2eb h1:maIcjSaT8xo5KUVe1G5M0j/UprvPZgRWoC6x0V7qXsQ=
 github.com/darrenvechain/thorgo v0.0.0-20250207092920-0986ae74e2eb/go.mod h1:cPaPaArnR/iEWWacuSocvasmdCNN0bNBHcM24s7bzBM=
+github.com/darrenvechain/thorgo v0.0.0-20250225124629-66dfae5512af h1:8QLTxmk3VieWVCVYYwBx9KCzVAGVfciYWh/ScRK4mSk=
+github.com/darrenvechain/thorgo v0.0.0-20250225124629-66dfae5512af/go.mod h1:2jvlw3sLYZma14BJpupBcRBIPBpcgEeE6t6xgViiW1Q=
+github.com/darrenvechain/thorgo v0.0.0-20250225130740-84e8a62fd693 h1:6nKRSlIlTzxi89UtaUZ15Y9zVzgDPZZDsreWM2mlo6o=
+github.com/darrenvechain/thorgo v0.0.0-20250225130740-84e8a62fd693/go.mod h1:2jvlw3sLYZma14BJpupBcRBIPBpcgEeE6t6xgViiW1Q=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

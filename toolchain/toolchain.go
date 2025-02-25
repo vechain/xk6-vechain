@@ -14,6 +14,7 @@ import (
 	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/random"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address common.Address) (string, error) {
@@ -37,7 +38,20 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	transaction, err := thor.Transactor(clauses).Build(manager.Address(), &transactions.Options{})
+	best, err := thor.Blocks.Best()
+	if err != nil {
+		return "", err
+	}
+	suggestion, err := thor.Client.FeesPriority()
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: Something better here??
+	transaction, err := thor.Transactor(clauses).Build(manager.Address(), &transactions.Options{
+		MaxFeePerGas:         best.BaseFee.ToInt(),
+		MaxPriorityFeePerGas: suggestion.MaxPriorityFeePerGas.ToInt(),
+	})
 	if err != nil {
 		return "", err
 	}
@@ -47,12 +61,12 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		return "", err
 	}
 	transaction = transaction.WithSignature(signature)
-	encoded, err := transaction.Encoded()
+	encoded, err := transaction.MarshalBinary()
 	if err != nil {
 		return "", err
 	}
 
-	return encoded, nil
+	return hexutil.Encode(encoded), nil
 }
 
 func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*ToolchainTransactor, error) {

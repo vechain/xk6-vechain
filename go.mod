@@ -3,7 +3,7 @@ module github.com/darrenvechain/xk6-vechain
 go 1.22.6
 
 require (
-	github.com/darrenvechain/thorgo v0.0.0-20250207092920-0986ae74e2eb
+	github.com/darrenvechain/thorgo v0.0.0-20250225130740-84e8a62fd693
 	github.com/ethereum/go-ethereum v1.15.1
 	github.com/grafana/sobek v0.0.0-20240829081756-447e8c611945
 	go.k6.io/k6 v0.54.0
@@ -17,8 +17,8 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/consensys/bavard v0.1.25 // indirect
-	github.com/consensys/gnark-crypto v0.14.0 // indirect
+	github.com/consensys/bavard v0.1.29 // indirect
+	github.com/consensys/gnark-crypto v0.16.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/crate-crypto/go-kzg-4844 v1.1.0 // indirect
 	github.com/deckarep/golang-set/v2 v2.7.0 // indirect
@@ -44,6 +44,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mstoykov/atlas v0.0.0-20220811071828-388f114305dd // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect

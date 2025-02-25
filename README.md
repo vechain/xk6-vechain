@@ -13,7 +13,7 @@ CGO_ENABLED=1 xk6 build --with github.com/darrenvechain/xk6-vechain=. --with git
 Start thor solo:
 
 ```
-thor solo
+docker run -p 8669:8669 ghcr.io/vechain/thor:release-galactica-latest solo --api-addr 0.0.0.0:8669
 ```
 
 **Optional**: Start Grafana + InfluxDB:

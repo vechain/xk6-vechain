@@ -107,9 +107,13 @@ func (c *Client) Fund(start int, amount string) error {
 					end = len(clauses)
 				}
 
-				txID, err := manager.SendClauses(clauses[i:end], nil)
+				tx, err := manager.SendClauses(clauses[i:end], nil)
+				if err != nil {
+					clauseErr = err
+					return
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-				_, err = c.thor.Transaction(txID).Wait(ctx)
+				_, err = tx.Wait(ctx)
 				cancel()
 				if err != nil {
 					clauseErr = err
@@ -136,7 +140,9 @@ func (c *Client) pollForBlocks() {
 		return
 	}
 
-	for range time.Tick(500 * time.Millisecond) {
+	ticker := c.thor.Blocks.Ticker()
+
+	for range ticker.C() {
 		block, err := c.thor.Blocks.Best()
 		if err != nil {
 			continue
@@ -154,6 +160,8 @@ func (c *Client) pollForBlocks() {
 					// We already have a block number for this client, so we can skip this
 					continue
 				}
+
+				baseFee, _ := block.BaseFee.ToInt().Float64()
 
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
@@ -195,6 +203,14 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(blockTimestampDiff.Milliseconds()),
+							Time:  time.Now(),
+						},
+						{
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.BaseFee,
+								Tags:   rootTS,
+							},
+							Value: baseFee,
 							Time:  time.Now(),
 						},
 					},
