@@ -1,6 +1,6 @@
 module github.com/darrenvechain/xk6-vechain
 
-go 1.22.6
+go 1.23
 
 require (
 	github.com/darrenvechain/thorgo v0.0.0-20250225130740-84e8a62fd693

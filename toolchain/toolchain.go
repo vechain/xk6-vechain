@@ -48,10 +48,12 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 	}
 
 	// TODO: Something better here??
-	transaction, err := thor.Transactor(clauses).Build(manager.Address(), &transactions.Options{
-		MaxFeePerGas:         best.BaseFee.ToInt(),
-		MaxPriorityFeePerGas: suggestion.MaxPriorityFeePerGas.ToInt(),
-	})
+	options := new(transactions.OptionsBuilder).
+		MaxFeePerGas(best.BaseFee.ToInt()).
+		MaxPriorityFeePerGas(suggestion.MaxPriorityFeePerGas.ToInt()).
+		Build()
+
+	transaction, err := thor.Transactor(clauses).Build(manager.Address(), options)
 	if err != nil {
 		return "", err
 	}

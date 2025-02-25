@@ -3,6 +3,7 @@ package xk6_vechain
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"math/big"
 	"strconv"
 	"sync"
@@ -140,9 +141,7 @@ func (c *Client) pollForBlocks() {
 		return
 	}
 
-	ticker := c.thor.Blocks.Ticker()
-
-	for range ticker.C() {
+	for range time.Tick(500 * time.Millisecond) {
 		block, err := c.thor.Blocks.Best()
 		if err != nil {
 			continue
@@ -160,6 +159,8 @@ func (c *Client) pollForBlocks() {
 					// We already have a block number for this client, so we can skip this
 					continue
 				}
+
+				slog.Info("New block - after if statement")
 
 				baseFee, _ := block.BaseFee.ToInt().Float64()
 
