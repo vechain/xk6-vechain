@@ -7,7 +7,7 @@ This repository contains the xk6 extension for interacting with the VeChain bloc
 To build the executable:
 
 ```bash
-CGO_ENABLED=1 xk6 build --with github.com/darrenvechain/xk6-vechain=. --with github.com/grafana/xk6-dashboard@latest --with github.com/grafana/xk6-output-influxdb@latest
+XK6_RACE_DETECTOR=1 xk6 build --with github.com/darrenvechain/xk6-vechain=. --with github.com/grafana/xk6-dashboard@latest --with github.com/grafana/xk6-output-influxdb@latest
 ```
 
 Start thor solo:
