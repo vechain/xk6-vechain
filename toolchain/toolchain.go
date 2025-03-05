@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"github.com/darrenvechain/thorgo/thorest"
 	"log/slog"
 	"math/big"
 	"sync"
@@ -39,7 +40,7 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	best, err := thor.Blocks.Best()
+	fees, err := thor.Client.FeesHistory(thorest.RevisionNext(), 1)
 	if err != nil {
 		return "", err
 	}
@@ -48,7 +49,7 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		return "", err
 	}
 
-	baseFee := big.NewInt(0).Mul(best.BaseFee.ToInt(), big.NewInt(9))
+	baseFee := big.NewInt(0).Mul(fees.BaseFees[0].ToInt(), big.NewInt(9))
 	baseFee = baseFee.Div(baseFee, big.NewInt(8))
 
 	// TODO: Something better here??
