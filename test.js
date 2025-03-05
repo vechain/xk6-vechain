@@ -7,17 +7,17 @@ export const options = {
         contacts: {
             executor: 'ramping-arrival-rate',
             // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
-            startRate: 22,
+            startRate: 33,
             // Set the time unit to 10 seconds (ie. 1 block)
             timeUnit: '10s',
             // Pre-allocate necessary VUs.
             preAllocatedVUs: 100,
             maxVUs: 100,
             stages: [
-                { target: 22, duration: '1m' },
-                { target: 22, duration: '1m' },
                 { target: 33, duration: '1m' },
                 { target: 33, duration: '1m' },
+                { target: 44, duration: '1m' },
+                { target: 44, duration: '1m' },
                 { target: 44, duration: '1m' },
                 { target: 33, duration: '1m' },
                 { target: 33, duration: '1m' },

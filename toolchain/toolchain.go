@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"log/slog"
+	"math/big"
 	"sync"
 	"time"
 
@@ -47,9 +48,12 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		return "", err
 	}
 
+	baseFee := big.NewInt(0).Mul(best.BaseFee.ToInt(), big.NewInt(9))
+	baseFee = baseFee.Div(baseFee, big.NewInt(8))
+
 	// TODO: Something better here??
 	options := new(transactions.OptionsBuilder).
-		MaxFeePerGas(best.BaseFee.ToInt()).
+		MaxFeePerGas(baseFee).
 		MaxPriorityFeePerGas(suggestion.MaxPriorityFeePerGas.ToInt()).
 		Build()
 

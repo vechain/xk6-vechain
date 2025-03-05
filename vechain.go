@@ -3,7 +3,6 @@ package xk6_vechain
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"math/big"
 	"strconv"
 	"sync"
@@ -160,8 +159,6 @@ func (c *Client) pollForBlocks() {
 					continue
 				}
 
-				slog.Info("New block - after if statement")
-
 				baseFee, _ := block.BaseFee.ToInt().Float64()
 
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
@@ -209,7 +206,9 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.BaseFee,
-								Tags:   rootTS,
+								Tags: rootTS.WithTagsFromMap(map[string]string{
+									"signer": block.Signer.String(),
+								}),
 							},
 							Value: baseFee,
 							Time:  time.Now(),
