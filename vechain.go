@@ -184,9 +184,7 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.GasUsed,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"block": strconv.Itoa(int(block.Number)),
-								}),
+								Tags:   rootTS,
 							},
 							Value: float64(block.GasUsed),
 							Time:  blockTime,
