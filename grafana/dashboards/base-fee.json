@@ -112,7 +112,7 @@
           "refId": "A"
         }
       ],
-      "title": "Panel Title",
+      "title": "Base Fee (% of Minimum)",
       "type": "timeseries"
     }
   ],
