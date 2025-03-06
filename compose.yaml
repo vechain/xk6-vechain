@@ -19,8 +19,6 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=vechain
       - DOCKER_INFLUXDB_INIT_RETENTION=0
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin-token
-    volumes:
-      - ${PWD}/volumes/influxdb2:/var/lib/influxdb2
 
   grafana:
     user: "0"
@@ -38,4 +36,3 @@ services:
       - ${PWD}/grafana/data-sources.yaml:/etc/grafana/provisioning/datasources/grafana-data-sources.yaml
       - ${PWD}/grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
       - ${PWD}/grafana/dashboards:/var/lib/grafana/dashboards
-      - ${PWD}/volumes/grafana:/var/lib/grafana

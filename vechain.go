@@ -3,6 +3,7 @@ package xk6_vechain
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"math/big"
 	"strconv"
 	"sync"
@@ -148,7 +149,7 @@ func (c *Client) pollForBlocks() {
 
 		if block.Number > prev.Number {
 			blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
-			tps := float64(len(block.Transactions)) / float64(blockTimestampDiff.Seconds())
+			tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
 
 			prev = block
 
@@ -160,6 +161,11 @@ func (c *Client) pollForBlocks() {
 				}
 
 				baseFee, _ := block.BaseFee.ToInt().Float64()
+				baseFeePercent := baseFee * 100 / 10_000_000_000_000
+
+				slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
+
+				blockTime := time.Unix(block.Timestamp, 0)
 
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
@@ -173,7 +179,7 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(block.Number),
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -183,7 +189,7 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(block.GasUsed),
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -191,7 +197,7 @@ func (c *Client) pollForBlocks() {
 								Tags:   rootTS,
 							},
 							Value: tps,
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -201,17 +207,18 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(blockTimestampDiff.Milliseconds()),
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.BaseFee,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"signer": block.Signer.String(),
-								}),
+								Tags:   rootTS,
 							},
-							Value: baseFee,
-							Time:  time.Now(),
+							Value: baseFeePercent,
+							Time:  blockTime,
+							Metadata: map[string]string{
+								"block": strconv.Itoa(int(block.Number)),
+							},
 						},
 					},
 				})
