@@ -13,7 +13,7 @@ XK6_RACE_DETECTOR=1 xk6 build --with github.com/darrenvechain/xk6-vechain=. --wi
 Start thor solo:
 
 ```
-docker run -p 8669:8669 ghcr.io/vechain/thor:release-galactica-latest solo --api-addr 0.0.0.0:8669
+docker run -p 8669:8669 ghcr.io/vechain/thor:release-galactica-latest solo --api-addr 0.0.0.0:8669 --enable-metrics
 ```
 
 **Optional**: Start Grafana + InfluxDB:

@@ -66,7 +66,7 @@ func (c *Client) Fund(start int, amount string) error {
 
 	// funder index -> clauses to send
 	clauses := make(map[int][]*tx.Clause)
-	vtho, err := builtins.NewVTHO(c.thor.Client)
+	vtho, err := builtins.NewVTHO(c.thor.Client())
 	if err != nil {
 		return err
 	}
@@ -136,13 +136,13 @@ func (c *Client) Fund(start int, amount string) error {
 var blocks sync.Map
 
 func (c *Client) pollForBlocks() {
-	prev, err := c.thor.Blocks.Best()
+	prev, err := c.thor.Blocks().Best()
 	if err != nil {
 		return
 	}
 
 	for range time.Tick(500 * time.Millisecond) {
-		block, err := c.thor.Blocks.Best()
+		block, err := c.thor.Blocks().Best()
 		if err != nil {
 			continue
 		}

@@ -94,7 +94,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 
 	thor := thorgo.New(context.Background(), opts.URL)
 
-	chainTag, err := thor.Client.ChainTag()
+	chainTag, err := thor.Client().ChainTag()
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("failed to get chain tag: %w", err))
 	}
@@ -105,7 +105,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 		if err != nil {
 			panic(err)
 		}
-		manager := txmanager.FromPK(key.MustGetPrivateKey(), thor.Client)
+		manager := txmanager.FromPK(key.MustGetPrivateKey(), thor.Client())
 		managers[i] = manager
 	}
 

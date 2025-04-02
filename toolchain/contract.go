@@ -8,6 +8,7 @@ import (
 	"errors"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/darrenvechain/thorgo/accounts"
 	"github.com/darrenvechain/thorgo/blocks"
@@ -32,6 +33,7 @@ var (
 	_ = context.Background
 	_ = tx.NewClause
 	_ = blocks.New
+	_ = time.Sleep
 )
 
 // ToolchainTodo is an auto generated low-level Go binding around a user-defined struct.
@@ -126,16 +128,9 @@ func (_ToolchainTransactor *ToolchainTransactor) Transact(opts *transactions.Opt
 // BalanceOf is a free data retrieval call binding the contract method 0x722713f7.
 //
 // Solidity: function balanceOf() view returns(uint256)
-func (_Toolchain *Toolchain) BalanceOf(revision ...thorest.Revision) (*big.Int, error) {
-	var rev thorest.Revision
-	if len(revision) > 0 {
-		rev = revision[0]
-	} else {
-		rev = thorest.RevisionBest()
-	}
-
+func (_Toolchain *Toolchain) BalanceOf(revision thorest.Revision) (*big.Int, error) {
 	var out []interface{}
-	err := _Toolchain.Call(rev, &out, "balanceOf")
+	err := _Toolchain.Call(revision, &out, "balanceOf")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -149,16 +144,9 @@ func (_Toolchain *Toolchain) BalanceOf(revision ...thorest.Revision) (*big.Int, 
 // GetTodo is a free data retrieval call binding the contract method 0x7fa1680a.
 //
 // Solidity: function getTodo() pure returns((string,bool))
-func (_Toolchain *Toolchain) GetTodo(revision ...thorest.Revision) (ToolchainTodo, error) {
-	var rev thorest.Revision
-	if len(revision) > 0 {
-		rev = revision[0]
-	} else {
-		rev = thorest.RevisionBest()
-	}
-
+func (_Toolchain *Toolchain) GetTodo(revision thorest.Revision) (ToolchainTodo, error) {
 	var out []interface{}
-	err := _Toolchain.Call(rev, &out, "getTodo")
+	err := _Toolchain.Call(revision, &out, "getTodo")
 
 	if err != nil {
 		return *new(ToolchainTodo), err
@@ -172,16 +160,9 @@ func (_Toolchain *Toolchain) GetTodo(revision ...thorest.Revision) (ToolchainTod
 // RandomFunc is a free data retrieval call binding the contract method 0xa1b9243d.
 //
 // Solidity: function randomFunc() pure returns(uint256, address)
-func (_Toolchain *Toolchain) RandomFunc(revision ...thorest.Revision) (*big.Int, common.Address, error) {
-	var rev thorest.Revision
-	if len(revision) > 0 {
-		rev = revision[0]
-	} else {
-		rev = thorest.RevisionBest()
-	}
-
+func (_Toolchain *Toolchain) RandomFunc(revision thorest.Revision) (*big.Int, common.Address, error) {
 	var out []interface{}
-	err := _Toolchain.Call(rev, &out, "randomFunc")
+	err := _Toolchain.Call(revision, &out, "randomFunc")
 
 	if err != nil {
 		return *new(*big.Int), *new(common.Address), err
@@ -196,21 +177,21 @@ func (_Toolchain *Toolchain) RandomFunc(revision ...thorest.Revision) (*big.Int,
 // PayMe is a paid mutator transaction binding the contract method 0xd997ccb3.
 //
 // Solidity: function payMe() payable returns()
-func (_ToolchainTransactor *ToolchainTransactor) PayMe(opts *transactions.Options) (*transactions.Visitor, error) {
+//
+// Setting the value in options is replaced by the vetValue argument.
+func (_ToolchainTransactor *ToolchainTransactor) PayMe(vetValue *big.Int, opts *transactions.Options) (*transactions.Visitor, error) {
+	if opts == nil {
+		opts = &transactions.Options{}
+	}
+	opts.VET = vetValue
 	return _ToolchainTransactor.Transact(opts, "payMe")
 }
 
 // PayMeAsClause is a transaction clause generator 0xd997ccb3.
 //
 // Solidity: function payMe() payable returns()
-func (_Toolchain *Toolchain) PayMeAsClause(vetValue ...*big.Int) (*tx.Clause, error) {
-	var val *big.Int
-	if len(vetValue) > 0 {
-		val = vetValue[0]
-	} else {
-		val = big.NewInt(0)
-	}
-	return _Toolchain.contract.AsClauseWithVET(val, "payMe")
+func (_Toolchain *Toolchain) PayMeAsClause(vetValue *big.Int) (*tx.Clause, error) {
+	return _Toolchain.contract.AsClauseWithVET(vetValue, "payMe")
 }
 
 // SetBytes32 is a paid mutator transaction binding the contract method 0xaecb29bf.
@@ -223,14 +204,8 @@ func (_ToolchainTransactor *ToolchainTransactor) SetBytes32(a uint8, b [32]byte,
 // SetBytes32AsClause is a transaction clause generator 0xaecb29bf.
 //
 // Solidity: function setBytes32(uint8 a, bytes32 b, bytes32 c) returns()
-func (_Toolchain *Toolchain) SetBytes32AsClause(a uint8, b [32]byte, c [32]byte, vetValue ...*big.Int) (*tx.Clause, error) {
-	var val *big.Int
-	if len(vetValue) > 0 {
-		val = vetValue[0]
-	} else {
-		val = big.NewInt(0)
-	}
-	return _Toolchain.contract.AsClauseWithVET(val, "setBytes32", a, b, c)
+func (_Toolchain *Toolchain) SetBytes32AsClause(a uint8, b [32]byte, c [32]byte) (*tx.Clause, error) {
+	return _Toolchain.contract.AsClause("setBytes32", a, b, c)
 }
 
 // ToolchainToolchainEvent represents a ToolchainEvent event raised by the Toolchain contract.
@@ -238,7 +213,7 @@ type ToolchainToolchainEvent struct {
 	A   *big.Int
 	B   [32]byte
 	C   [32]byte
-	Log thorest.EventLog
+	Log *thorest.EventLog
 }
 
 type ToolchainToolchainEventCriteria struct {
@@ -290,14 +265,6 @@ func (_Toolchain *Toolchain) FilterToolchainEvent(criteria []ToolchainToolchainE
 		return nil, err
 	}
 
-	inputs := _Toolchain.contract.ABI.Events["ToolchainEvent"].Inputs
-	var indexed abi.Arguments
-	for _, arg := range inputs {
-		if arg.Indexed {
-			indexed = append(indexed, arg)
-		}
-	}
-
 	events := make([]ToolchainToolchainEvent, len(logs))
 	for i, log := range logs {
 		event := new(ToolchainToolchainEvent)
@@ -316,7 +283,6 @@ func (_Toolchain *Toolchain) FilterToolchainEvent(criteria []ToolchainToolchainE
 // Solidity: event ToolchainEvent(uint256 indexed a, bytes32 indexed b, bytes32 c)
 func (_Toolchain *Toolchain) WatchToolchainEvent(criteria []ToolchainToolchainEventCriteria, ctx context.Context, bufferSize int64) (chan *ToolchainToolchainEvent, error) {
 	topicHash := _Toolchain.contract.ABI.Events["ToolchainEvent"].ID
-
 	criteriaSet := make([]thorest.EventCriteria, len(criteria))
 
 	for i, c := range criteria {
@@ -347,54 +313,42 @@ func (_Toolchain *Toolchain) WatchToolchainEvent(criteria []ToolchainToolchainEv
 	eventChan := make(chan *ToolchainToolchainEvent, bufferSize)
 	blocks := blocks.New(ctx, _Toolchain.thor)
 	ticker := blocks.Ticker()
+	best, err := blocks.Best()
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
+	go func(current int64) {
 		defer close(eventChan)
 
 		for {
 			select {
 			case <-ticker.C():
-				block, err := blocks.Best()
-				if err != nil {
-					continue
-				}
-				for _, tx := range block.Transactions {
-					for index, outputs := range tx.Outputs {
-						for _, event := range outputs.Events {
-							for _, c := range criteriaSet {
-								if !c.Matches(event) {
-									continue
-								}
-							}
+				for { // loop until the current block is not found
+					block, err := blocks.Expanded(thorest.RevisionNumber(current))
+					if errors.Is(thorest.ErrNotFound, err) {
+						break
+					}
+					if err != nil {
+						time.Sleep(250 * time.Millisecond)
+						continue
+					}
+					current++
 
-							log := thorest.EventLog{
-								Address: &_Toolchain.contract.Address,
-								Topics:  event.Topics,
-								Data:    event.Data,
-								Meta: thorest.LogMeta{
-									BlockID:     block.ID,
-									BlockNumber: block.Number,
-									BlockTime:   block.Timestamp,
-									TxID:        tx.ID,
-									TxOrigin:    tx.Origin,
-									ClauseIndex: int64(index),
-								},
-							}
-
-							ev := new(ToolchainToolchainEvent)
-							if err := _Toolchain.contract.UnpackLog(ev, "ToolchainEvent", log); err != nil {
-								continue
-							}
-							ev.Log = log
-							eventChan <- ev
+					for _, log := range block.FilteredEvents(criteriaSet) {
+						ev := new(ToolchainToolchainEvent)
+						if err := _Toolchain.contract.UnpackLog(ev, "ToolchainEvent", log); err != nil {
+							continue
 						}
+						ev.Log = log
+						eventChan <- ev
 					}
 				}
 			case <-ctx.Done():
 				return
 			}
 		}
-	}()
+	}(best.Number + 1)
 
 	return eventChan, nil
 }
