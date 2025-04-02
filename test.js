@@ -2,26 +2,34 @@ import vechain from "k6/x/vechain";
 import http from "k6/http";
 import {sleep, check} from "k6";
 
+const stage = [
+    { target: 33, duration: '10m' },
+    { target: 42, duration: '5m' },
+    { target: 36, duration: '5m' },
+    { target: 20, duration: '10m' },
+    { target: 15, duration: '5m' },
+]
+
+const stages = []
+for (let i = 0; i < 10_000; i++) {
+    for (let j = 0; j < stage.length; j++) {
+        const st = stage[j]
+        stages.push(st)
+    }
+}
+
 export const options = {
     scenarios: {
         contacts: {
             executor: 'ramping-arrival-rate',
             // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
-            startRate: 33,
+            startRate: 36,
             // Set the time unit to 10 seconds (ie. 1 block)
             timeUnit: '10s',
             // Pre-allocate necessary VUs.
-            preAllocatedVUs: 100,
-            maxVUs: 100,
-            stages: [
-                { target: 33, duration: '1m' },
-                { target: 33, duration: '1m' },
-                { target: 44, duration: '1m' },
-                { target: 44, duration: '1m' },
-                { target: 44, duration: '1m' },
-                { target: 33, duration: '1m' },
-                { target: 33, duration: '1m' },
-            ],
+            preAllocatedVUs: 50,
+            maxVUs: 50,
+            stages,
         },
     },
     tags: {
@@ -56,8 +64,6 @@ export default function (setup) {
 
 export function setup() {
     console.log("Setting up test");
-    const tenThousandVET = "21E19E0C9BAB2400000";
-    thor.fund(10, tenThousandVET);
     const contracts = thor.deployToolchain(1);
     return {contracts};
 }
