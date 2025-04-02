@@ -49,7 +49,7 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1)
+	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1, []float64{})
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +89,7 @@ func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*
 		wg sync.WaitGroup
 	)
 
-	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1)
+	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1, []float64{})
 	if err != nil {
 		return nil, err
 	}
