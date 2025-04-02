@@ -3,7 +3,7 @@ module github.com/darrenvechain/xk6-vechain
 go 1.23.6
 
 require (
-	github.com/darrenvechain/thorgo v0.0.0-20250401085210-91849f1fd622
+	github.com/darrenvechain/thorgo v0.0.0-20250402150245-0ab0c1ccc4ab
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/grafana/sobek v0.0.0-20250219104821-ed22af7a8d6c
 	go.k6.io/k6 v0.57.0

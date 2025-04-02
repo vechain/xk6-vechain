@@ -82,6 +82,8 @@ github.com/crate-crypto/go-kzg-4844 v1.1.0 h1:EN/u9k2TF6OWSHrCCDBBU6GLNMq88OspHH
 github.com/crate-crypto/go-kzg-4844 v1.1.0/go.mod h1:JolLjpSff1tCCJKaJx4psrlEdlXuJEC996PL3tTAFks=
 github.com/darrenvechain/thorgo v0.0.0-20250401085210-91849f1fd622 h1:XQz75lEeVuiSgDJpPe5pGmvpkkkk017uhgwRcqs25is=
 github.com/darrenvechain/thorgo v0.0.0-20250401085210-91849f1fd622/go.mod h1:U/uz8hUDLdR7T8k3OpeUL4vW0gkzh79qjGSqVlLv++8=
+github.com/darrenvechain/thorgo v0.0.0-20250402150245-0ab0c1ccc4ab h1:t632Erjgz+eddQf7VNG2fCXDze0ZPQcUJh+R7DGbhjc=
+github.com/darrenvechain/thorgo v0.0.0-20250402150245-0ab0c1ccc4ab/go.mod h1:U/uz8hUDLdR7T8k3OpeUL4vW0gkzh79qjGSqVlLv++8=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
