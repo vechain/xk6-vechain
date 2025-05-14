@@ -23,13 +23,11 @@ import (
 
 // Reference imports to suppress errors if they are not otherwise used.
 var (
-	_ = errors.New
+	_ = errors.Is
 	_ = big.NewInt
-	_ = strings.NewReader
-	_ = bind.Bind
-	_ = common.Big1
+	_ = strings.ReplaceAll
 	_ = abi.ConvertType
-	_ = hexutil.MustDecode
+	_ = hexutil.Decode
 	_ = context.Background
 	_ = tx.NewClause
 	_ = blocks.New
@@ -54,9 +52,6 @@ func DeployToolchain(ctx context.Context, thor *thorest.Client, sender accounts.
 	parsed, err := ToolchainMetaData.GetAbi()
 	if err != nil {
 		return common.Hash{}, nil, err
-	}
-	if parsed == nil {
-		return common.Hash{}, nil, errors.New("GetABI returned nil")
 	}
 
 	bytes, err := hexutil.Decode(ToolchainMetaData.Bin)
@@ -121,8 +116,8 @@ func (_Toolchain *Toolchain) Call(revision thorest.Revision, result *[]interface
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_ToolchainTransactor *ToolchainTransactor) Transact(opts *transactions.Options, method string, params ...interface{}) (*transactions.Visitor, error) {
-	return _ToolchainTransactor.contract.Send(opts, method, params...)
+func (_ToolchainTransactor *ToolchainTransactor) Transact(opts *transactions.Options, vet *big.Int, method string, params ...interface{}) *accounts.Sender {
+	return _ToolchainTransactor.contract.SendPayable(opts, vet, method, params...)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x722713f7.
@@ -179,12 +174,8 @@ func (_Toolchain *Toolchain) RandomFunc(revision thorest.Revision) (*big.Int, co
 // Solidity: function payMe() payable returns()
 //
 // Setting the value in options is replaced by the vetValue argument.
-func (_ToolchainTransactor *ToolchainTransactor) PayMe(vetValue *big.Int, opts *transactions.Options) (*transactions.Visitor, error) {
-	if opts == nil {
-		opts = &transactions.Options{}
-	}
-	opts.VET = vetValue
-	return _ToolchainTransactor.Transact(opts, "payMe")
+func (_ToolchainTransactor *ToolchainTransactor) PayMe(vetValue *big.Int, opts *transactions.Options) *accounts.Sender {
+	return _ToolchainTransactor.Transact(opts, vetValue, "payMe")
 }
 
 // PayMeAsClause is a transaction clause generator 0xd997ccb3.
@@ -197,8 +188,8 @@ func (_Toolchain *Toolchain) PayMeAsClause(vetValue *big.Int) (*tx.Clause, error
 // SetBytes32 is a paid mutator transaction binding the contract method 0xaecb29bf.
 //
 // Solidity: function setBytes32(uint8 a, bytes32 b, bytes32 c) returns()
-func (_ToolchainTransactor *ToolchainTransactor) SetBytes32(a uint8, b [32]byte, c [32]byte, opts *transactions.Options) (*transactions.Visitor, error) {
-	return _ToolchainTransactor.Transact(opts, "setBytes32", a, b, c)
+func (_ToolchainTransactor *ToolchainTransactor) SetBytes32(a uint8, b [32]byte, c [32]byte, opts *transactions.Options) *accounts.Sender {
+	return _ToolchainTransactor.Transact(opts, big.NewInt(0), "setBytes32", a, b, c)
 }
 
 // SetBytes32AsClause is a transaction clause generator 0xaecb29bf.
