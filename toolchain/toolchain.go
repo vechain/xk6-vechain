@@ -49,7 +49,7 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1, []float64{})
+	fees, err := thor.Client().FeesHistory(thorest.RevisionBest(), 1, []float64{})
 	if err != nil {
 		return "", err
 	}

@@ -2,21 +2,10 @@ import vechain from "k6/x/vechain";
 import http from "k6/http";
 import {sleep, check} from "k6";
 
-const stage = [
-    { target: 33, duration: '10m' },
-    { target: 42, duration: '5m' },
-    { target: 36, duration: '5m' },
-    { target: 20, duration: '10m' },
-    { target: 15, duration: '5m' },
+const stages = [
+    { target: 44, duration: "10s" },
+    { target: 44, duration: "10m" }
 ]
-
-const stages = []
-for (let i = 0; i < 10_000; i++) {
-    for (let j = 0; j < stage.length; j++) {
-        const st = stage[j]
-        stages.push(st)
-    }
-}
 
 export const options = {
     scenarios: {
@@ -52,6 +41,8 @@ export default function (setup) {
     const body = {
         raw: rawTx
     };
+
+    console.log("sending tx");
 
     const res = http.post(`${url}/transactions`, JSON.stringify(body));
 
