@@ -34,7 +34,7 @@ export const options = {
             preAllocatedVUs: 50,
             maxVUs: 50,
             // No time limit - runs until you stop it
-            duration: '0',
+            duration: '0s',
             gracefulStop: '30s',
         },
     },
