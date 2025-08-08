@@ -21,17 +21,19 @@ import (
 )
 
 type Client struct {
-	wallet      *hdwallet.Wallet
-	thor        *thorgo.Thor
-	chainTag    byte
-	vu          modules.VU
-	metrics     vechainMetrics
-	opts        *options
-	accounts    int
-	managers    []*txmanager.PKManager
-	ctx         context.Context
-	cancel      context.CancelFunc
-	metricsChan chan blockMetrics
+	wallet         *hdwallet.Wallet
+	thor           *thorgo.Thor
+	chainTag       byte
+	vu             modules.VU
+	metrics        vechainMetrics
+	opts           *options
+	accounts       int
+	managers       []*txmanager.PKManager
+	ctx            context.Context
+	cancel         context.CancelFunc
+	metricsChan    chan blockMetrics
+	metricsMu      sync.Mutex
+	pendingMetrics []blockMetrics
 }
 
 type blockMetrics struct {
@@ -54,6 +56,9 @@ func (c *Client) Accounts() []string {
 }
 
 func (c *Client) DeployToolchain(amount int) ([]string, error) {
+	// Flush any pending metrics before processing
+	c.FlushMetrics()
+
 	contracts, err := toolchain.Deploy(c.thor, c.managers, amount)
 	if err != nil {
 		return nil, err
@@ -66,6 +71,9 @@ func (c *Client) DeployToolchain(amount int) ([]string, error) {
 }
 
 func (c *Client) NewToolchainTransaction(address string) (string, error) {
+	// Flush any pending metrics before processing
+	c.FlushMetrics()
+
 	addr := common.HexToAddress(address)
 	return toolchain.NewTransaction(c.thor, c.managers, addr)
 }
@@ -74,6 +82,9 @@ func (c *Client) NewToolchainTransaction(address string) (string, error) {
 // The amount is the amount of VET & VTHO to send, represented as hex.
 // Example: thor solo only funds the first 10 accounts [0-9], so specify 10 as the start index.
 func (c *Client) Fund(start int, amount string) error {
+	// Flush any pending metrics before processing
+	c.FlushMetrics()
+
 	if start > len(c.managers) {
 		return errors.New("start index is greater than the number of accounts")
 	}
@@ -212,70 +223,92 @@ func (c *Client) Close() {
 	}
 }
 
-// processMetrics processes metrics from the channel and sends them to k6
+// processMetrics stores metrics in a queue for later processing
 func (c *Client) processMetrics() {
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
 		case metric := <-c.metricsChan:
-			if c.vu != nil && c.vu.State() != nil {
-				rootTS := metrics.NewRegistry().RootTagSet()
-
-				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
-					Samples: []metrics.Sample{
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.Block,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"transactions": strconv.Itoa(metric.transactions),
-									"gas_used":     strconv.FormatInt(metric.gasUsed, 10),
-									"gas_limit":    strconv.FormatInt(metric.gasLimit, 10),
-								}),
-							},
-							Value: float64(metric.blockNumber),
-							Time:  metric.timestamp,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.GasUsed,
-								Tags:   rootTS,
-							},
-							Value: float64(metric.gasUsed),
-							Time:  metric.timestamp,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.TPS,
-								Tags:   rootTS,
-							},
-							Value: metric.tps,
-							Time:  metric.timestamp,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.BlockTime,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"block_timestamp_diff": metric.blockTime.String(),
-								}),
-							},
-							Value: float64(metric.blockTime.Milliseconds()),
-							Time:  metric.timestamp,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.BaseFee,
-								Tags:   rootTS,
-							},
-							Value: metric.baseFeePercent,
-							Time:  metric.timestamp,
-							Metadata: map[string]string{
-								"block": strconv.FormatInt(metric.blockNumber, 10),
-							},
-						},
-					},
-				})
-			}
+			// Store metric in pending queue instead of directly accessing VU
+			c.metricsMu.Lock()
+			c.pendingMetrics = append(c.pendingMetrics, metric)
+			c.metricsMu.Unlock()
 		}
 	}
+}
+
+// FlushMetrics sends all pending metrics to k6 (should be called from main thread)
+func (c *Client) FlushMetrics() {
+	c.metricsMu.Lock()
+	defer c.metricsMu.Unlock()
+
+	if len(c.pendingMetrics) == 0 || c.vu == nil || c.vu.State() == nil {
+		return
+	}
+
+	rootTS := metrics.NewRegistry().RootTagSet()
+	var samples []metrics.Sample
+
+	for _, metric := range c.pendingMetrics {
+		samples = append(samples, []metrics.Sample{
+			{
+				TimeSeries: metrics.TimeSeries{
+					Metric: c.metrics.Block,
+					Tags: rootTS.WithTagsFromMap(map[string]string{
+						"transactions": strconv.Itoa(metric.transactions),
+						"gas_used":     strconv.FormatInt(metric.gasUsed, 10),
+						"gas_limit":    strconv.FormatInt(metric.gasLimit, 10),
+					}),
+				},
+				Value: float64(metric.blockNumber),
+				Time:  metric.timestamp,
+			},
+			{
+				TimeSeries: metrics.TimeSeries{
+					Metric: c.metrics.GasUsed,
+					Tags:   rootTS,
+				},
+				Value: float64(metric.gasUsed),
+				Time:  metric.timestamp,
+			},
+			{
+				TimeSeries: metrics.TimeSeries{
+					Metric: c.metrics.TPS,
+					Tags:   rootTS,
+				},
+				Value: metric.tps,
+				Time:  metric.timestamp,
+			},
+			{
+				TimeSeries: metrics.TimeSeries{
+					Metric: c.metrics.BlockTime,
+					Tags: rootTS.WithTagsFromMap(map[string]string{
+						"block_timestamp_diff": metric.blockTime.String(),
+					}),
+				},
+				Value: float64(metric.blockTime.Milliseconds()),
+				Time:  metric.timestamp,
+			},
+			{
+				TimeSeries: metrics.TimeSeries{
+					Metric: c.metrics.BaseFee,
+					Tags:   rootTS,
+				},
+				Value: metric.baseFeePercent,
+				Time:  metric.timestamp,
+				Metadata: map[string]string{
+					"block": strconv.FormatInt(metric.blockNumber, 10),
+				},
+			},
+		}...)
+	}
+
+	// Clear pending metrics
+	c.pendingMetrics = c.pendingMetrics[:0]
+
+	// Send all metrics at once
+	metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+		Samples: samples,
+	})
 }
