@@ -111,19 +111,21 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &Client{
-		vu:       mi.vu,
-		metrics:  mi.m,
-		thor:     thor,
-		wallet:   wa,
-		chainTag: chainTag,
-		opts:     opts,
-		accounts: opts.Accounts,
-		managers: managers,
-		ctx:      ctx,
-		cancel:   cancel,
+		vu:          mi.vu,
+		metrics:     mi.m,
+		thor:        thor,
+		wallet:      wa,
+		chainTag:    chainTag,
+		opts:        opts,
+		accounts:    opts.Accounts,
+		managers:    managers,
+		ctx:         ctx,
+		cancel:      cancel,
+		metricsChan: make(chan blockMetrics, 100), // Buffer for 100 metrics
 	}
 
 	go client.pollForBlocks()
+	go client.processMetrics()
 
 	return rt.ToValue(client).ToObject(rt)
 }
@@ -146,13 +148,8 @@ func registerMetrics(vu modules.VU) vechainMetrics {
 func (c *Client) reportMetricsFromStats(call string, t time.Duration) {
 	registry := metrics.NewRegistry()
 
-	// Protect access to vu with read lock
-	c.vuMu.RLock()
-	vu := c.vu
-	c.vuMu.RUnlock()
-
-	if vu != nil {
-		metrics.PushIfNotDone(vu.Context(), vu.State().Samples, metrics.Sample{
+	if c.vu != nil {
+		metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.Sample{
 			TimeSeries: metrics.TimeSeries{
 				Metric: c.metrics.RequestDuration,
 				Tags:   registry.RootTagSet().With("call", call),
