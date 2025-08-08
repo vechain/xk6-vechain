@@ -33,8 +33,8 @@ export const options = {
             // Pre-allocate necessary VUs.
             preAllocatedVUs: 50,
             maxVUs: 50,
-            // No time limit - runs until you stop it
-            duration: '0s',
+            // 1 year, aimed to run until you stop it
+            duration: '8760h',
             gracefulStop: '30s',
         },
     },
