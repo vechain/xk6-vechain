@@ -1,4 +1,4 @@
-module github.com/darrenvechain/xk6-vechain
+module github.com/vechain/xk6-vechain
 
 go 1.24.2
 
