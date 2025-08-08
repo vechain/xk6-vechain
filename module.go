@@ -121,7 +121,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 		managers:    managers,
 		ctx:         ctx,
 		cancel:      cancel,
-		metricsChan: make(chan blockMetrics, 100), // Buffer for 100 metrics
+		metricsChan: make(chan blockMetrics, 100),
 	}
 
 	go client.pollForBlocks()

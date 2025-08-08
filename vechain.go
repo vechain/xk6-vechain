@@ -56,7 +56,6 @@ func (c *Client) Accounts() []string {
 }
 
 func (c *Client) DeployToolchain(amount int) ([]string, error) {
-	// Flush any pending metrics before processing
 	c.FlushMetrics()
 
 	contracts, err := toolchain.Deploy(c.thor, c.managers, amount)
@@ -71,7 +70,6 @@ func (c *Client) DeployToolchain(amount int) ([]string, error) {
 }
 
 func (c *Client) NewToolchainTransaction(address string) (string, error) {
-	// Flush any pending metrics before processing
 	c.FlushMetrics()
 
 	addr := common.HexToAddress(address)
@@ -82,7 +80,6 @@ func (c *Client) NewToolchainTransaction(address string) (string, error) {
 // The amount is the amount of VET & VTHO to send, represented as hex.
 // Example: thor solo only funds the first 10 accounts [0-9], so specify 10 as the start index.
 func (c *Client) Fund(start int, amount string) error {
-	// Flush any pending metrics before processing
 	c.FlushMetrics()
 
 	if start > len(c.managers) {
@@ -195,7 +192,6 @@ func (c *Client) pollForBlocks() {
 
 				slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
 
-				// Send metrics through channel instead of directly accessing VU
 				select {
 				case c.metricsChan <- blockMetrics{
 					blockNumber:    block.Number,
@@ -230,7 +226,6 @@ func (c *Client) processMetrics() {
 		case <-c.ctx.Done():
 			return
 		case metric := <-c.metricsChan:
-			// Store metric in pending queue instead of directly accessing VU
 			c.metricsMu.Lock()
 			c.pendingMetrics = append(c.pendingMetrics, metric)
 			c.metricsMu.Unlock()
