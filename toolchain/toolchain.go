@@ -4,20 +4,21 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"github.com/darrenvechain/thorgo/thorest"
 	"log/slog"
 	"math/big"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/darrenvechain/thorgo/thorest"
+
 	"github.com/darrenvechain/thorgo"
 	"github.com/darrenvechain/thorgo/crypto/tx"
 	"github.com/darrenvechain/thorgo/transactions"
 	"github.com/darrenvechain/thorgo/txmanager"
-	"github.com/darrenvechain/xk6-vechain/random"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/vechain/xk6-vechain/random"
 )
 
 // randomPriorityFee returns a random priority fee in range [0, 500]

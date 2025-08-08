@@ -14,8 +14,8 @@ import (
 	"github.com/darrenvechain/thorgo/crypto/hdwallet"
 	"github.com/darrenvechain/thorgo/crypto/tx"
 	"github.com/darrenvechain/thorgo/txmanager"
-	"github.com/darrenvechain/xk6-vechain/toolchain"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/vechain/xk6-vechain/toolchain"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/metrics"
 )
