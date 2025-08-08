@@ -30,6 +30,7 @@ type vechainMetrics struct {
 	GasUsed         *metrics.Metric
 	TPS             *metrics.Metric
 	BlockTime       *metrics.Metric
+	BaseFee         *metrics.Metric
 }
 
 func init() {
@@ -93,7 +94,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 
 	thor := thorgo.New(context.Background(), opts.URL)
 
-	chainTag, err := thor.Client.ChainTag()
+	chainTag, err := thor.Client().ChainTag()
 	if err != nil {
 		common.Throw(rt, fmt.Errorf("failed to get chain tag: %w", err))
 	}
@@ -104,7 +105,7 @@ func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 		if err != nil {
 			panic(err)
 		}
-		manager := txmanager.FromPK(key.MustGetPrivateKey(), thor.Client)
+		manager := txmanager.FromPK(key.MustGetPrivateKey(), thor.Client())
 		managers[i] = manager
 	}
 
@@ -133,6 +134,7 @@ func registerMetrics(vu modules.VU) vechainMetrics {
 		GasUsed:         registry.MustNewMetric("vechain_gas_used", metrics.Trend, metrics.Default),
 		TPS:             registry.MustNewMetric("vechain_tps", metrics.Trend, metrics.Default),
 		BlockTime:       registry.MustNewMetric("vechain_block_time", metrics.Trend, metrics.Time),
+		BaseFee:         registry.MustNewMetric("vechain_base_fee", metrics.Trend, metrics.Default),
 	}
 
 	return m

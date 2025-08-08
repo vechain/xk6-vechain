@@ -3,6 +3,7 @@ package xk6_vechain
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"math/big"
 	"strconv"
 	"sync"
@@ -65,7 +66,7 @@ func (c *Client) Fund(start int, amount string) error {
 
 	// funder index -> clauses to send
 	clauses := make(map[int][]*tx.Clause)
-	vtho, err := builtins.NewVTHO(c.thor.Client)
+	vtho, err := builtins.NewVTHO(c.thor.Client())
 	if err != nil {
 		return err
 	}
@@ -107,9 +108,13 @@ func (c *Client) Fund(start int, amount string) error {
 					end = len(clauses)
 				}
 
-				txID, err := manager.SendClauses(clauses[i:end], nil)
+				tx, err := manager.SendClauses(clauses[i:end], nil)
+				if err != nil {
+					clauseErr = err
+					return
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-				_, err = c.thor.Transaction(txID).Wait(ctx)
+				_, err = tx.Wait(ctx)
 				cancel()
 				if err != nil {
 					clauseErr = err
@@ -131,20 +136,20 @@ func (c *Client) Fund(start int, amount string) error {
 var blocks sync.Map
 
 func (c *Client) pollForBlocks() {
-	prev, err := c.thor.Blocks.Best()
+	prev, err := c.thor.Blocks().Best()
 	if err != nil {
 		return
 	}
 
 	for range time.Tick(500 * time.Millisecond) {
-		block, err := c.thor.Blocks.Best()
+		block, err := c.thor.Blocks().Best()
 		if err != nil {
 			continue
 		}
 
 		if block.Number > prev.Number {
 			blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
-			tps := float64(len(block.Transactions)) / float64(blockTimestampDiff.Seconds())
+			tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
 
 			prev = block
 
@@ -154,6 +159,13 @@ func (c *Client) pollForBlocks() {
 					// We already have a block number for this client, so we can skip this
 					continue
 				}
+
+				baseFee, _ := block.BaseFee.ToInt().Float64()
+				baseFeePercent := baseFee * 100 / 10_000_000_000_000
+
+				slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
+
+				blockTime := time.Unix(block.Timestamp, 0)
 
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
@@ -167,17 +179,15 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(block.Number),
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.GasUsed,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"block": strconv.Itoa(int(block.Number)),
-								}),
+								Tags:   rootTS,
 							},
 							Value: float64(block.GasUsed),
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -185,7 +195,7 @@ func (c *Client) pollForBlocks() {
 								Tags:   rootTS,
 							},
 							Value: tps,
-							Time:  time.Now(),
+							Time:  blockTime,
 						},
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -195,7 +205,18 @@ func (c *Client) pollForBlocks() {
 								}),
 							},
 							Value: float64(blockTimestampDiff.Milliseconds()),
-							Time:  time.Now(),
+							Time:  blockTime,
+						},
+						{
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.BaseFee,
+								Tags:   rootTS,
+							},
+							Value: baseFeePercent,
+							Time:  blockTime,
+							Metadata: map[string]string{
+								"block": strconv.Itoa(int(block.Number)),
+							},
 						},
 					},
 				})

@@ -4,7 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"github.com/darrenvechain/thorgo/thorest"
 	"log/slog"
+	"math/big"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -14,12 +17,21 @@ import (
 	"github.com/darrenvechain/thorgo/txmanager"
 	"github.com/darrenvechain/xk6-vechain/random"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
+
+// randomPriorityFee returns a random priority fee in range [0, 500]
+func randomPriorityFee() *big.Int {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	max := big.NewInt(501)
+	randomValue := new(big.Int).Rand(rand.New(rand.NewSource(time.Now().UnixNano())), max)
+	return randomValue
+}
 
 func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address common.Address) (string, error) {
 	manager := random.Element(managers)
 
-	contract, err := NewToolchainTransactor(address, thor.Client, manager)
+	contract, err := NewToolchainTransactor(address, thor.Client(), manager)
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +49,21 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	transaction, err := thor.Transactor(clauses).Build(manager.Address(), &transactions.Options{})
+	fees, err := thor.Client().FeesHistory(thorest.RevisionBest(), 1, []float64{})
+	if err != nil {
+		return "", err
+	}
+
+	baseFee := big.NewInt(0).Mul(fees.BaseFeePerGas[0].ToInt(), big.NewInt(9))
+	baseFee = baseFee.Div(baseFee, big.NewInt(8))
+
+	// TODO: Something better here??
+	options := new(transactions.OptionsBuilder).
+		MaxFeePerGas(baseFee).
+		MaxPriorityFeePerGas(randomPriorityFee()).
+		Build()
+
+	transaction, err := thor.Transactor(clauses).Build(manager.Address(), options)
 	if err != nil {
 		return "", err
 	}
@@ -47,12 +73,12 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		return "", err
 	}
 	transaction = transaction.WithSignature(signature)
-	encoded, err := transaction.Encoded()
+	encoded, err := transaction.MarshalBinary()
 	if err != nil {
 		return "", err
 	}
 
-	return encoded, nil
+	return hexutil.Encode(encoded), nil
 }
 
 func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*ToolchainTransactor, error) {
@@ -63,6 +89,13 @@ func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*
 		wg sync.WaitGroup
 	)
 
+	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1, []float64{})
+	if err != nil {
+		return nil, err
+	}
+
+	baseFee := big.NewInt(0).Mul(fees.BaseFeePerGas[0].ToInt(), big.NewInt(3))
+
 	for i := range amount {
 		manager := managers[i%len(managers)]
 		wg.Add(1)
@@ -72,7 +105,10 @@ func Deploy(thor *thorgo.Thor, managers []*txmanager.PKManager, amount int) ([]*
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 
-			txID, contract, err := DeployToolchain(ctx, thor.Client, manager, &transactions.Options{})
+			txID, contract, err := DeployToolchain(ctx, thor.Client(), manager, &transactions.Options{
+				MaxFeePerGas:         baseFee,
+				MaxPriorityFeePerGas: randomPriorityFee(),
+			})
 			if err != nil {
 				slog.Error("failed to deploy toolchain contract", "error", err, "txID", txID)
 				return
