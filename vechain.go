@@ -29,6 +29,9 @@ type Client struct {
 	opts     *options
 	accounts int
 	managers []*txmanager.PKManager
+	vuMu     sync.RWMutex // mutex to protect access to vu
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 func (c *Client) Accounts() []string {
@@ -141,86 +144,117 @@ func (c *Client) pollForBlocks() {
 		return
 	}
 
-	for range time.Tick(500 * time.Millisecond) {
-		block, err := c.thor.Blocks().Best()
-		if err != nil {
-			continue
-		}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 
-		if block.Number > prev.Number {
-			blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
-			tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-ticker.C:
+			block, err := c.thor.Blocks().Best()
+			if err != nil {
+				continue
+			}
 
-			prev = block
+			if block.Number > prev.Number {
+				blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
+				tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
 
-			rootTS := metrics.NewRegistry().RootTagSet()
-			if c.vu != nil && c.vu.State() != nil && rootTS != nil {
-				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatInt(block.Number, 10), true); loaded {
-					// We already have a block number for this client, so we can skip this
-					continue
+				prev = block
+
+				rootTS := metrics.NewRegistry().RootTagSet()
+
+				// Protect access to vu with read lock
+				c.vuMu.RLock()
+				vu := c.vu
+				c.vuMu.RUnlock()
+
+				if vu != nil && vu.State() != nil && rootTS != nil {
+					if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatInt(block.Number, 10), true); loaded {
+						// We already have a block number for this client, so we can skip this
+						continue
+					}
+
+					baseFee, _ := block.BaseFee.ToInt().Float64()
+					baseFeePercent := baseFee * 100 / 10_000_000_000_000
+
+					slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
+
+					blockTime := time.Unix(block.Timestamp, 0)
+
+					// Get context safely
+					var ctx context.Context
+					c.vuMu.RLock()
+					if vu != nil {
+						ctx = vu.Context()
+					} else {
+						ctx = c.ctx
+					}
+					c.vuMu.RUnlock()
+
+					metrics.PushIfNotDone(ctx, vu.State().Samples, metrics.ConnectedSamples{
+						Samples: []metrics.Sample{
+							{
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.Block,
+									Tags: rootTS.WithTagsFromMap(map[string]string{
+										"transactions": strconv.Itoa(len(block.Transactions)),
+										"gas_used":     strconv.Itoa(int(block.GasUsed)),
+										"gas_limit":    strconv.Itoa(int(block.GasLimit)),
+									}),
+								},
+								Value: float64(block.Number),
+								Time:  blockTime,
+							},
+							{
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.GasUsed,
+									Tags:   rootTS,
+								},
+								Value: float64(block.GasUsed),
+								Time:  blockTime,
+							},
+							{
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.TPS,
+									Tags:   rootTS,
+								},
+								Value: tps,
+								Time:  blockTime,
+							},
+							{
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.BlockTime,
+									Tags: rootTS.WithTagsFromMap(map[string]string{
+										"block_timestamp_diff": blockTimestampDiff.String(),
+									}),
+								},
+								Value: float64(blockTimestampDiff.Milliseconds()),
+								Time:  blockTime,
+							},
+							{
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.BaseFee,
+									Tags:   rootTS,
+								},
+								Value: baseFeePercent,
+								Time:  blockTime,
+								Metadata: map[string]string{
+									"block": strconv.Itoa(int(block.Number)),
+								},
+							},
+						},
+					})
 				}
-
-				baseFee, _ := block.BaseFee.ToInt().Float64()
-				baseFeePercent := baseFee * 100 / 10_000_000_000_000
-
-				slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
-
-				blockTime := time.Unix(block.Timestamp, 0)
-
-				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
-					Samples: []metrics.Sample{
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.Block,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"transactions": strconv.Itoa(len(block.Transactions)),
-									"gas_used":     strconv.Itoa(int(block.GasUsed)),
-									"gas_limit":    strconv.Itoa(int(block.GasLimit)),
-								}),
-							},
-							Value: float64(block.Number),
-							Time:  blockTime,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.GasUsed,
-								Tags:   rootTS,
-							},
-							Value: float64(block.GasUsed),
-							Time:  blockTime,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.TPS,
-								Tags:   rootTS,
-							},
-							Value: tps,
-							Time:  blockTime,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.BlockTime,
-								Tags: rootTS.WithTagsFromMap(map[string]string{
-									"block_timestamp_diff": blockTimestampDiff.String(),
-								}),
-							},
-							Value: float64(blockTimestampDiff.Milliseconds()),
-							Time:  blockTime,
-						},
-						{
-							TimeSeries: metrics.TimeSeries{
-								Metric: c.metrics.BaseFee,
-								Tags:   rootTS,
-							},
-							Value: baseFeePercent,
-							Time:  blockTime,
-							Metadata: map[string]string{
-								"block": strconv.Itoa(int(block.Number)),
-							},
-						},
-					},
-				})
 			}
 		}
+	}
+}
+
+// Close cancels the context and stops the pollForBlocks goroutine
+func (c *Client) Close() {
+	if c.cancel != nil {
+		c.cancel()
 	}
 }
