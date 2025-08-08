@@ -2,39 +2,23 @@ import { check, sleep } from "k6";
 import http from "k6/http";
 import vechain from "k6/x/vechain";
 
-// ramping-arrival-rate
-// const stages = [
-//     { target: 44, duration: "10s" },
-//     { target: 44, duration: "10m" }
-// ]
+const stages = [
+    { target: 44, duration: "10s" },
+    { target: 44, duration: "10m" }
+]
 
 export const options = {
     scenarios: {
-        // ramping-arrival-rate
-        // contacts_ramping: {
-        //     executor: 'ramping-arrival-rate',
-        //     // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
-        //     startRate: 36,
-        //     // Set the time unit to 10 seconds (ie. 1 block)
-        //     timeUnit: '10s',
-        //     // Pre-allocate necessary VUs.
-        //     preAllocatedVUs: 50,
-        //     maxVUs: 50,
-        //     stages,
-        //     gracefulStop: '30s',
-        // },
-        
-        // constant-arrival-rate
         contacts: {
-            executor: 'constant-arrival-rate',
-            // Maintain constant rate
-            rate: 22,
+            executor: 'ramping-arrival-rate',
+            // Start with `startRate` transactions per block. Eg set this to 10 to achieve 10 txs per block.
+            startRate: 36,
+            // Set the time unit to 10 seconds (ie. 1 block)
             timeUnit: '10s',
             // Pre-allocate necessary VUs.
             preAllocatedVUs: 50,
             maxVUs: 50,
-            // 1 year, aimed to run until you stop it
-            duration: '8760h',
+            stages,
             gracefulStop: '30s',
         },
     },
