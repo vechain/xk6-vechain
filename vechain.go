@@ -163,63 +163,55 @@ func (c *Client) pollForBlocks() {
 		return
 	}
 
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
+	for range time.Tick(500 * time.Millisecond) {
+		block, err := c.thor.Blocks().Best()
+		if err != nil {
+			continue
+		}
 
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case <-ticker.C:
-			block, err := c.thor.Blocks().Best()
-			if err != nil {
+		if block.Number > prev.Number {
+			blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
+			tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
+
+			prev = block
+
+			if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatInt(block.Number, 10), true); loaded {
+				// We already have a block number for this client, so we can skip this
 				continue
 			}
 
-			if block.Number > prev.Number {
-				blockTimestampDiff := time.Unix(block.Timestamp, 0).Sub(time.Unix(prev.Timestamp, 0))
-				tps := float64(len(block.Transactions)) / blockTimestampDiff.Seconds()
+			baseFee, _ := block.BaseFee.ToInt().Float64()
+			baseFeePercent := baseFee * 100 / 10_000_000_000_000
 
-				prev = block
+			slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
 
-				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatInt(block.Number, 10), true); loaded {
-					// We already have a block number for this client, so we can skip this
-					continue
-				}
-
-				baseFee, _ := block.BaseFee.ToInt().Float64()
-				baseFeePercent := baseFee * 100 / 10_000_000_000_000
-
-				slog.Info("base fee", "val", baseFeePercent, "block", block.Number)
-
-				select {
-				case c.metricsChan <- blockMetrics{
-					blockNumber:    block.Number,
-					transactions:   len(block.Transactions),
-					gasUsed:        block.GasUsed,
-					gasLimit:       block.GasLimit,
-					tps:            tps,
-					blockTime:      blockTimestampDiff,
-					baseFeePercent: baseFeePercent,
-					timestamp:      time.Unix(block.Timestamp, 0),
-				}:
-				default:
-					// Channel is full, skip this metric
-					slog.Warn("metrics channel full, skipping block metric")
-				}
+			select {
+			case c.metricsChan <- blockMetrics{
+				blockNumber:    block.Number,
+				transactions:   len(block.Transactions),
+				gasUsed:        block.GasUsed,
+				gasLimit:       block.GasLimit,
+				tps:            tps,
+				blockTime:      blockTimestampDiff,
+				baseFeePercent: baseFeePercent,
+				timestamp:      time.Unix(block.Timestamp, 0),
+			}:
+			default:
+				// Channel is full, skip this metric
+				slog.Warn("metrics channel full, skipping block metric")
 			}
 		}
 	}
 }
 
-// Close cancels the context and stops the pollForBlocks goroutine
+// Close cancels the context
 func (c *Client) Close() {
 	if c.cancel != nil {
 		c.cancel()
 	}
 }
 
-// processMetrics stores metrics in a queue for later processing
+// processMetrics stores metrics in a channel for later processing
 func (c *Client) processMetrics() {
 	for {
 		select {
