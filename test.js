@@ -25,6 +25,7 @@ export const options = {
             // Pre-allocate necessary VUs.
             preAllocatedVUs: 50,
             maxVUs: 50,
+            // Roughly 78 days running
             stages: repeatStages(stages, 10000),
             gracefulStop: '30s',
         },
