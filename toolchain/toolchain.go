@@ -46,18 +46,21 @@ func NewTransaction(thor *thorgo.Thor, managers []*txmanager.PKManager, address 
 		clauses[i] = clause
 	}
 
-	fees, err := thor.Client().FeesHistory(thorest.RevisionBest(), 1, []float64{})
+	fees, err := thor.Client().FeesHistory(thorest.RevisionNext(), 1, []float64{})
 	if err != nil {
 		return "", err
 	}
 
-	baseFee := big.NewInt(0).Mul(fees.BaseFeePerGas[0].ToInt(), big.NewInt(9))
-	baseFee = baseFee.Div(baseFee, big.NewInt(8))
+	maxPriorityFee, err := thor.Client().FeesPriority()
+	if err != nil {
+		return "", err
+	}
+	maxPriorityFeeBigInt := maxPriorityFee.MaxPriorityFeePerGas.ToInt()
+	maxFeePerGas := new(big.Int).Add(fees.BaseFeePerGas[0].ToInt(), maxPriorityFeeBigInt)
 
-	// TODO: Something better here??
 	options := new(transactions.OptionsBuilder).
-		MaxFeePerGas(baseFee).
-		MaxPriorityFeePerGas(randomPriorityFee()).
+		MaxFeePerGas(maxFeePerGas).
+		MaxPriorityFeePerGas(maxPriorityFeeBigInt).
 		Build()
 
 	transaction, err := thor.Transactor(clauses).Build(manager.Address(), options)
