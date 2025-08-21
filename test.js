@@ -3,9 +3,11 @@ import http from "k6/http";
 import vechain from "k6/x/vechain";
 
 const stages = [
-    { target: 44, duration: "10s" },
-    { target: 44, duration: "10m" },
-    { target: 0, duration: "1m" },
+  { target: 33, duration: '10m' },
+  { target: 42, duration: '5m' },
+  { target: 36, duration: '5m' },
+  { target: 20, duration: '10m' },
+  { target: 15, duration: '5m' },
 ]
 
 function repeatStages(cycle, times) {
@@ -50,8 +52,6 @@ export default function (setup) {
     const body = {
         raw: rawTx
     };
-
-    console.log("sending tx");
 
     const res = http.post(`${url}/transactions`, JSON.stringify(body));
 
